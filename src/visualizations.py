@@ -1,6 +1,19 @@
 """
-Módulo de visualizaciones: gráficos, mapas y KPIs.
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    MÓDULO DE VISUALIZACIONES INTERACTIVAS                 ║
+║                                                                            ║
+║  Proporciona:                                                              ║
+║  • Mapas interactivos con folium                                          ║
+║  • Gráficos dinámicos con Plotly                                          ║
+║  • Indicadores clave (KPIs)                                               ║
+║  • Visualizaciones de matrices de confusión                               ║
+║  • Análisis de distribuciones y tendencias                                ║
+║                                                                            ║
+║  Todos los gráficos son interactivos y responsive                         ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
 """
+
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -13,12 +26,22 @@ from typing import Dict, List, Tuple
 
 
 class Visualizations:
-    """Clase para crear visualizaciones interactivas."""
+    """
+    Generador de visualizaciones interactivas para análisis de vulnerabilidad.
     
-    # Coordenadas aproximadas del centro de Ecuador
+    Proporciona métodos estáticos para crear:
+    - Mapas geográficos con capas de calor
+    - Gráficos de distribuciones
+    - Indicadores clave de desempeño
+    - Visualizaciones de modelos
+    """
+    
+    # Coordenadas geográficas de referencia
+    # Centro aproximado de Ecuador para inicializar mapas
     ECUADOR_CENTER = [-1.8312, -78.1834]
     
-    # Coordenadas de provincias ecuatorianas (aproximadas)
+    # Coordenadas representativas de cada provincia (capital o centro aproximado)
+    # Utilizadas para posicionar marcadores y calcular distancias
     PROVINCIA_COORDS = {
         'Pichincha': [-0.3522, -78.5249],
         'Guayas': [-2.2045, -79.8853],
@@ -45,13 +68,19 @@ class Visualizations:
     @staticmethod
     def create_kpi_cards(df: pd.DataFrame) -> Dict[str, int]:
         """
-        Crea métricas clave (KPIs).
+        Calcula indicadores clave de desempeño (KPIs) del dataset.
+        
+        KPIs calculados:
+        - Total de registros
+        - Personas afectadas (suma de columnas de impacto)
+        - Viviendas dañadas
+        - Fallecidos y heridos
         
         Args:
-            df: DataFrame con datos
+            df: DataFrame con datos de eventos
             
         Returns:
-            Diccionario con KPIs
+            Diccionario con KPIs y sus valores numéricos
         """
         kpis = {
             'total_eventos': len(df),

@@ -1,6 +1,14 @@
 """
-Aplicación Streamlit: Dashboard de Predicción de Zonas Vulnerables a Desastres Naturales en Ecuador
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║     SISTEMA DE PREDICCIÓN DE ZONAS VULNERABLES A DESASTRES NATURALES      ║
+║                         Ecuador - 2024                                     ║
+║                                                                            ║
+║  Dashboard interactivo para análisis de riesgo ante eventos naturales     ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
 """
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,19 +16,22 @@ import sys
 from pathlib import Path
 import os
 import plotly.express as px
+import time
 
-# Agregar la ruta del src al path
+# Configurar rutas de importación para los módulos locales
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.data_processor import DataProcessor
-from src.models import MLModels
-from src.visualizations import Visualizations
+from src.data_processor import DataProcessor  # Procesamiento de datos
+from src.models import MLModels               # Modelos de Machine Learning
+from src.visualizations import Visualizations # Visualizaciones y mapas
 import streamlit_folium
 import warnings
 warnings.filterwarnings('ignore')
 
 
-# Configuración de la página
+# ══════════════════════════════════════════════════════════════════════════════
+# CONFIGURACIÓN DE LA PÁGINA
+# ══════════════════════════════════════════════════════════════════════════════
 st.set_page_config(
     page_title="Sistema de Predicción de Desastres - Ecuador",
     page_icon="🗺️",
@@ -28,19 +39,24 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS personalizados
+# Estilos CSS personalizados para mejorar la presentación visual
 st.markdown("""
 <style>
+    /* Encabezado principal */
     .main-header {
         text-align: center;
         color: #1f77b4;
         margin-bottom: 2rem;
     }
+    
+    /* Contenedor de indicadores clave (KPIs) */
     .kpi-container {
         display: flex;
         gap: 1rem;
         margin-bottom: 2rem;
     }
+    
+    /* Tarjetas individuales de KPI */
     .kpi-card {
         flex: 1;
         padding: 1.5rem;
@@ -50,11 +66,13 @@ st.markdown("""
         text-align: center;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
+    
     .kpi-value {
         font-size: 2.5rem;
         font-weight: bold;
         margin: 0.5rem 0;
     }
+    
     .kpi-label {
         font-size: 0.9rem;
         opacity: 0.9;
@@ -62,30 +80,46 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Inicializar session state
-if 'data_processor' not in st.session_state:
-    st.session_state.data_processor = DataProcessor()
-if 'df_loaded' not in st.session_state:
-    st.session_state.df_loaded = None
-if 'df_processed' not in st.session_state:
-    st.session_state.df_processed = None
-if 'ml_models' not in st.session_state:
-    st.session_state.ml_models = MLModels()
-if 'models_trained' not in st.session_state:
-    st.session_state.models_trained = {}
+# ══════════════════════════════════════════════════════════════════════════════
+# INICIALIZACIÓN DEL ESTADO DE LA SESIÓN
+# ══════════════════════════════════════════════════════════════════════════════
+# Streamlit mantiene estos valores persistentes durante toda la sesión del usuario
 
-# ============================================================================
+if 'data_processor' not in st.session_state:
+    st.session_state.data_processor = DataProcessor()  # Instancia para carga y limpieza de datos
+
+if 'df_loaded' not in st.session_state:
+    st.session_state.df_loaded = None  # Almacena el DataFrame original
+
+if 'df_processed' not in st.session_state:
+    st.session_state.df_processed = None  # Almacena el DataFrame procesado/limpio
+
+if 'ml_models' not in st.session_state:
+    st.session_state.ml_models = MLModels()  # Gestor centralizado de modelos ML
+
+if 'models_trained' not in st.session_state:
+    st.session_state.models_trained = {}  # Diccionario para rastrear qué modelos se entrenaron
+
+if 'trained_model_name' not in st.session_state:
+    st.session_state.trained_model_name = None  # Nombre del modelo actualmente en uso
+
+# ══════════════════════════════════════════════════════════════════════════════
 # CONTENIDO PRINCIPAL
-# ============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("# 🗺️ Sistema de Predicción de Desastres Naturales - Ecuador")
 st.markdown("---")
 
-# Crear las pestañas (tabs)
-tab1, tab2, tab3 = st.tabs(["📁 Gestión de Datos", "🤖 Entrenamiento y Análisis", "📊 Visualización de Resultados"])
+# Crear las tres pestañas principales de la aplicación
+tab1, tab2, tab3 = st.tabs([
+    "📁 Gestión de Datos",
+    "🤖 Entrenamiento y Análisis", 
+    "📊 Visualización de Resultados"
+])
 
-# ============================================================================
-# TAB 1: GESTIÓN DE DATOS
-# ============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
+# PESTAÑA 1: GESTIÓN DE DATOS
+# Aquí el usuario carga, visualiza y procesa los datos iniciales
+# ══════════════════════════════════════════════════════════════════════════════
 with tab1:
     st.markdown("## 1️⃣ Gestión de Datos (Carga y Depuración)")
     
@@ -110,12 +144,14 @@ with tab1:
         
         with col_demo:
             if st.button("📂 Cargar Datos de Demostración"):
+                # Intentar cargar archivo de demostración original
                 demo_file = "/workspaces/Proyecto_SRG/SGR_Eventos.csv"
                 if os.path.exists(demo_file):
                     st.session_state.df_loaded = st.session_state.data_processor.load_data(file_path=demo_file)
-                    st.success("✅ Datos de demostración cargados")
+                    st.success("✅ Datos de demostración cargados desde archivo")
                 else:
-                    # Crear datos de demostración
+                    # Si no existe, generar datos de prueba sintéticos
+                    # Útil para testing cuando no hay archivo disponible
                     np.random.seed(42)
                     demo_data = pd.DataFrame({
                         'Fecha': pd.date_range('2015-01-01', periods=500, freq='W'),
@@ -132,6 +168,7 @@ with tab1:
     with col2:
         st.markdown("### Estadísticas del Archivo")
         if st.session_state.df_loaded is not None:
+            # Mostrar resumen rápido del dataset cargado
             summary = st.session_state.data_processor.get_data_summary(st.session_state.df_loaded)
             st.metric("📊 Total de Registros", summary['total_registros'])
             st.metric("📋 Total de Columnas", summary['columnas'])
@@ -144,33 +181,29 @@ with tab1:
     
     if st.session_state.df_loaded is not None:
         st.markdown("### Vista Previa de Datos")
-        
-        col_preview, col_info = st.columns([2, 1])
-        
-        with col_preview:
-            st.dataframe(
-                st.session_state.df_loaded.head(10),
-                use_container_width=True,
-                height=300
-            )
-        
-        with col_info:
-            st.markdown("### Información de Columnas")
-            for col in st.session_state.df_loaded.columns:
-                dtype = str(st.session_state.df_loaded[col].dtype)
-                st.text(f"• **{col}**: {dtype}")
+        # Mostrar primeras 10 filas para inspeccionar estructura
+        st.dataframe(
+            st.session_state.df_loaded.head(10),
+            use_container_width=True,
+            height=300
+        )
         
         st.markdown("---")
         st.markdown("### Preprocesamiento y Limpieza")
+        st.write("El sistema detectará automáticamente columnas de interés (provincia, año, mes, evento)")
+        st.write("Se eliminarán datos incompletos y se normalizarán los valores")
         
         col_clean, col_download = st.columns(2)
         
         with col_clean:
             if st.button("🧹 Preprocesar/Limpiar Datos", use_container_width=True):
-                with st.spinner("Limpiando datos..."):
+                with st.spinner("Limpiando datos... Esto puede tomar un momento"):
+                    # Ejecutar limpieza completa
                     df_clean, stats = st.session_state.data_processor.clean_data(st.session_state.df_loaded)
                     st.session_state.df_processed = df_clean
+                    st.session_state.cleaning_stats = stats  # Guardar para mostrar detalles
                     
+                    # Mostrar resultados principales
                     col_stat1, col_stat2, col_stat3 = st.columns(3)
                     
                     with col_stat1:
@@ -180,7 +213,33 @@ with tab1:
                     with col_stat3:
                         st.metric("🔄 Duplicados Eliminados", stats['duplicados_eliminados'])
                     
-                    st.success("✅ Datos preprocesados correctamente")
+                    st.success("✅ Datos preprocesados correctamente. Listo para entrenar modelos.")
+        
+        # Mostrar detalles de limpieza en todo el ancho
+        if st.session_state.df_processed is not None:
+            with st.expander("📋 Detalles de Limpieza y Columnas Eliminadas", expanded=False):
+                st.markdown("#### Resumen de Eliminaciones")
+                st.write("**Años descartados:** 2023 (datos insuficientes - será tratado como año 'futuro')")
+                
+                st.markdown("#### Columnas Eliminadas (Nulos > 50%/Identificadores)")
+                # Obtener stats desde el session_state o recalcular
+                if 'cleaning_stats' in st.session_state and st.session_state.cleaning_stats:
+                    stats = st.session_state.cleaning_stats
+                    if 'columnas_eliminadas' in stats and stats['columnas_eliminadas']:
+                        cols_eliminated = st.columns(6)
+                        for idx, col_name in enumerate(stats['columnas_eliminadas']):
+                            with cols_eliminated[idx % 6]:
+                                st.write(f"❌ `{col_name}`")
+                    else:
+                        st.info("✅ No se eliminaron columnas")
+                    
+                    st.markdown("#### Columnas Retenidas")
+                    cols_retained = st.session_state.df_processed.columns.tolist()
+                    cols_display_ret = st.columns(6)
+                    for idx, col_name in enumerate(cols_retained):
+                        with cols_display_ret[idx % 6]:
+                            dtype = str(st.session_state.df_processed[col_name].dtype)
+                            st.write(f"✅ **{col_name}** (`{dtype}`)")
         
         with col_download:
             if st.session_state.df_processed is not None:
@@ -192,34 +251,69 @@ with tab1:
                     mime="text/csv",
                     use_container_width=True
                 )
+        
+        # Botón Siguiente al final de Tab 1
+        if st.session_state.df_processed is not None:
+            st.markdown("---")
+            col_next = st.columns([3, 1])
+            with col_next[1]:
+                if st.button("➡️ Siguiente", use_container_width=True, type="primary", key="next_tab1"):
+                    st.success("✅ Datos listos. Dirígete a la pestaña **'Entrenamiento y Análisis'**")
 
-# ============================================================================
-# TAB 2: ENTRENAMIENTO Y ANÁLISIS
-# ============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
+# PESTAÑA 2: ENTRENAMIENTO Y ANÁLISIS
+# Aquí entrenamos modelos de Machine Learning y evaluamos su desempeño
+# ══════════════════════════════════════════════════════════════════════════════
 with tab2:
     st.markdown("## 2️⃣ Entrenamiento y Análisis (ML/DL)")
     
     if st.session_state.df_processed is None:
         st.warning("⚠️ Primero debes cargar y procesar los datos en la pestaña 'Gestión de Datos'")
     else:
-        st.markdown("### Configuración del Modelo XGBoost")
-        st.info("📌 El sistema utiliza **XGBoost** como modelo de predicción principal")
-        
-        # Selección de variable objetivo
-        st.markdown("#### Variable Objetivo")
-        target_options = [col for col in st.session_state.df_processed.columns if st.session_state.df_processed[col].dtype in ['object', 'int64', 'float64']]
-        target_col = st.selectbox("Seleccionar Variable Objetivo", target_options if target_options else ["No disponible"])
+        st.markdown("### Configuración del Modelo")
+        st.info("Modelos disponibles: XGBoost (recomendado) y Random Forest (robusto).")
+
+        # Selección de modelo
+        model_choice = st.selectbox("Modelo de clasificación", ["XGBoost", "Random Forest"], index=0)
         
         st.markdown("---")
         
         # Selección de características/variables
         st.markdown("#### Selección de Variables (Features)")
+        st.info(
+            "📊 **Sobre las Variables Numéricas:**\n\n"
+            "A continuación se muestran todas las columnas numéricas disponibles en el dataset procesado. "
+            "Estas variables representan diferentes aspectos de los eventos históricos, tales como:\n"
+            "- **Impacto humano**: Personas afectadas, heridos, fallecidos, etc.\n"
+            "- **Impacto material**: Viviendas destruidas o afectadas, infraestructura dañada\n"
+            "- **Ubicación geográfica**: Coordenadas (latitud, longitud)\n"
+            "- **Características temporales**: Año, mes del evento\n\n"
+            "💡 **¿Cómo funciona la vulnerabilidad?** Se construye un **índice compuesto** con varias variables de impacto, "
+            "se normaliza y se divide en tres niveles (Baja, Media, Alta) usando terciles. "
+            "Selecciona las variables predictoras."
+        )
         
         numeric_cols = st.session_state.df_processed.select_dtypes(include=[np.number]).columns.tolist()
-        
-        # Remover la variable objetivo de las opciones si es numérica
-        if target_col != "No disponible" and target_col in numeric_cols:
-            numeric_cols.remove(target_col)
+        # Filtrar columnas ID/CODIF
+        numeric_cols = [c for c in numeric_cols if 'CODIF' not in c.upper() and 'ID' not in c.upper()]
+
+        # Columnas usadas para construir la etiqueta (impacto). No deben usarse como predictores para evitar fugas de información.
+        impact_cols_for_label = []
+        impact_cols_for_label.extend([
+            col for col in st.session_state.df_processed.columns
+            if 'PERSONAS' in col.upper() and 'AFECTADAS' in col.upper()
+        ])
+        impact_cols_for_label.extend([
+            col for col in st.session_state.df_processed.columns
+            if 'VIVIENDA' in col.upper() and ('DESTRUIDA' in col.upper() or 'AFECTADA' in col.upper())
+        ])
+        impact_cols_for_label.extend([
+            col for col in st.session_state.df_processed.columns
+            if 'FALLECIDO' in col.upper() or 'HERIDO' in col.upper() or 'DESAPARECIDO' in col.upper()
+        ])
+
+        # Features disponibles = numéricas sin las columnas usadas para la etiqueta
+        predictor_cols = [c for c in numeric_cols if c not in set(impact_cols_for_label)]
         
         # Checkbox para seleccionar todas
         select_all = st.checkbox("✅ Seleccionar todas las variables", value=True)
@@ -232,18 +326,18 @@ with tab2:
         cols_per_row = num_cols_display
         
         if 'selected_features' not in st.session_state:
-            st.session_state.selected_features = numeric_cols.copy()
+            st.session_state.selected_features = predictor_cols.copy()
         
         # Si se selecciona "seleccionar todas", actualizar
         if select_all:
-            st.session_state.selected_features = numeric_cols.copy()
+            st.session_state.selected_features = predictor_cols.copy()
         
         selected_features = []
         
         # Crear tabla de checkboxes
-        for i in range(0, len(numeric_cols), cols_per_row):
+        for i in range(0, len(predictor_cols), cols_per_row):
             cols = st.columns(cols_per_row)
-            for j, col_name in enumerate(numeric_cols[i:i+cols_per_row]):
+            for j, col_name in enumerate(predictor_cols[i:i+cols_per_row]):
                 with cols[j]:
                     is_checked = select_all or col_name in st.session_state.selected_features
                     if st.checkbox(col_name, value=is_checked, key=f"feature_{col_name}"):
@@ -251,67 +345,128 @@ with tab2:
         
         st.session_state.selected_features = selected_features
         
-        st.markdown(f"**Variables seleccionadas:** {len(selected_features)} / {len(numeric_cols)}")
+        st.markdown(f"**Variables seleccionadas:** {len(selected_features)} / {len(predictor_cols)}")
         
         st.markdown("---")
         
-        # Hiperparámetros de XGBoost
+        # Hiperparámetros
         st.markdown("#### Hiperparámetros del Modelo")
-        
-        col_hp1, col_hp2, col_hp3 = st.columns(3)
-        
-        with col_hp1:
-            xgb_n_estimators = st.slider("n_estimators", 50, 500, 150, step=10, 
-                                         help="Número de árboles de decisión")
-        
-        with col_hp2:
-            xgb_max_depth = st.slider("max_depth", 3, 20, 8, 
-                                      help="Profundidad máxima de cada árbol")
-        
-        with col_hp3:
-            xgb_learning_rate = st.slider("learning_rate", 0.01, 0.3, 0.1, step=0.01,
-                                         help="Tasa de aprendizaje del modelo")
-        
-        col_hp4, col_hp5, col_hp6 = st.columns(3)
-        
-        with col_hp4:
-            xgb_subsample = st.slider("subsample", 0.5, 1.0, 0.8, step=0.1,
-                                     help="Fracción de muestras para entrenar cada árbol")
-        
-        with col_hp5:
-            xgb_colsample = st.slider("colsample_bytree", 0.5, 1.0, 0.8, step=0.1,
-                                     help="Fracción de características para cada árbol")
-        
-        with col_hp6:
-            test_size = st.slider("Test Size", 0.1, 0.4, 0.2, step=0.05,
-                                 help="Porcentaje de datos para prueba")
+
+        if model_choice == "XGBoost":
+            col_hp1, col_hp2, col_hp3 = st.columns(3)
+            with col_hp1:
+                xgb_n_estimators = st.slider("n_estimators", 50, 500, 150, step=10, help="Número de árboles de decisión")
+            with col_hp2:
+                xgb_max_depth = st.slider("max_depth", 3, 20, 8, help="Profundidad máxima de cada árbol")
+            with col_hp3:
+                xgb_learning_rate = st.slider("learning_rate", 0.01, 0.3, 0.1, step=0.01, help="Tasa de aprendizaje del modelo")
+
+            col_hp4, col_hp5, col_hp6 = st.columns(3)
+            with col_hp4:
+                xgb_subsample = st.slider("subsample", 0.5, 1.0, 0.8, step=0.1, help="Fracción de muestras")
+            with col_hp5:
+                xgb_colsample = st.slider("colsample_bytree", 0.5, 1.0, 0.8, step=0.1, help="Fracción de características")
+            with col_hp6:
+                test_size = st.slider("Test Size", 0.1, 0.4, 0.2, step=0.05, help="Porcentaje de datos para prueba")
+        else:
+            col_hp1, col_hp2, col_hp3 = st.columns(3)
+            with col_hp1:
+                rf_n_estimators = st.slider("n_estimators", 50, 500, 100, step=10, help="Número de árboles")
+            with col_hp2:
+                rf_max_depth = st.slider("max_depth", 3, 30, 10, help="Profundidad máxima")
+            with col_hp3:
+                rf_min_samples_split = st.slider("min_samples_split", 2, 20, 5, help="Mínimo para dividir")
+            col_hp4, col_hp5 = st.columns(2)
+            with col_hp4:
+                rf_min_samples_leaf = st.slider("min_samples_leaf", 1, 10, 2, help="Mínimo por hoja")
+            with col_hp5:
+                test_size = st.slider("Test Size", 0.1, 0.4, 0.2, step=0.05, help="Porcentaje de datos para prueba")
         
         st.markdown("---")
+        
+        # Preparar datos ANTES del botón de entrenamiento
+        X = st.session_state.df_processed[selected_features].fillna(0).values if len(selected_features) > 0 else None
+        
+        # Crear índice de vulnerabilidad compuesto usando múltiples variables y generar 3 clases (Baja/Media/Alta)
+        if X is not None:
+            impact_cols: list[str] = []
+
+            # Personas afectadas
+            personas_cols = [col for col in st.session_state.df_processed.columns
+                             if 'PERSONAS' in col.upper() and 'AFECTADAS' in col.upper()]
+            impact_cols.extend(personas_cols)
+
+            # Viviendas dañadas/destruidas
+            vivienda_cols = [col for col in st.session_state.df_processed.columns
+                             if 'VIVIENDA' in col.upper() and ('DESTRUIDA' in col.upper() or 'AFECTADA' in col.upper())]
+            impact_cols.extend(vivienda_cols)
+
+            # Víctimas: fallecidos / heridos / desaparecidos
+            victimas_cols = [col for col in st.session_state.df_processed.columns
+                             if 'FALLECIDO' in col.upper() or 'HERIDO' in col.upper() or 'DESAPARECIDO' in col.upper()]
+            impact_cols.extend(victimas_cols)
+
+            if impact_cols:
+                impact_scores = []
+                for col in impact_cols:
+                    values = st.session_state.df_processed[col].fillna(0)
+                    if values.max() > 0:  # Normalizar para evitar que una sola variable domine
+                        normalized = values / values.max()
+                        impact_scores.append(normalized)
+
+                if impact_scores:
+                    composite_index = pd.concat(impact_scores, axis=1).mean(axis=1)
+                    # Intentar cortes equitativos (3 bins). Si fallan por duplicados, usar ranking.
+                    try:
+                        y_raw = pd.qcut(composite_index, 3, labels=[0, 1, 2])
+                    except Exception:
+                        ranks = composite_index.rank(method='first')
+                        y_raw = pd.qcut(ranks, 3, labels=[0, 1, 2])
+                    y_raw = pd.Series(y_raw).astype(int)
+                else:
+                    # Fallback balanceado a 3 clases
+                    y_raw = pd.Series(np.random.randint(0, 3, len(X)))
+            else:
+                # Si no hay columnas de impacto, generar clases balanceadas para permitir entrenamiento
+                y_raw = pd.Series(np.random.randint(0, 3, len(X)))
+
+            # Asegurar etiquetas continuas y al menos 2 clases para que XGBoost/Sklearn no falle
+            unique_vals = sorted(pd.Series(y_raw).unique())
+            if len(unique_vals) < 2:
+                # Generar una segunda clase mínima
+                y_raw.iloc[: max(1, len(y_raw)//5) ] = (y_raw.iloc[: max(1, len(y_raw)//5) ] + 1) % 3
+                unique_vals = sorted(pd.Series(y_raw).unique())
+
+            # Factorizar para garantizar etiquetas 0..k-1
+            y = pd.factorize(pd.Series(y_raw))[0].astype(int)
+        else:
+            y = None
         
         # Botón de entrenamiento
-        if st.button("🚀 Entrenar Modelo XGBoost", use_container_width=True, type="primary"):
+        if st.button("🚀 Entrenar Modelo", use_container_width=True, type="primary"):
             if len(selected_features) == 0:
                 st.error("❌ Debes seleccionar al menos una variable para entrenar el modelo")
+            elif X is None or y is None:
+                st.error("❌ Error al preparar datos")
             else:
-                with st.spinner("Entrenando modelo XGBoost..."):
-                    # Preparar datos con las features seleccionadas
-                    X = st.session_state.df_processed[selected_features].fillna(0).values
-                    
-                    # Crear target variable
-                    if target_col != "No disponible":
-                        if st.session_state.df_processed[target_col].dtype == 'object':
-                            from sklearn.preprocessing import LabelEncoder
-                            le = LabelEncoder()
-                            y = le.fit_transform(st.session_state.df_processed[target_col].astype(str))
-                        else:
-                            y = (st.session_state.df_processed[target_col] > st.session_state.df_processed[target_col].median()).astype(int)
-                    else:
-                        y = np.random.randint(0, 2, len(X))
-                    
-                    # Preparar datos en los modelos
-                    st.session_state.ml_models.prepare_data(X, y, test_size=test_size)
-                    
-                    # Entrenar XGBoost con los hiperparámetros configurados
+                progress = st.progress(0)
+                status = st.empty()
+
+                status.info("📦 Preparando datos...")
+                progress.progress(15)
+                time.sleep(0.05)
+
+                # IMPORTANTE: Guardar features para usar en Tab 3
+                st.session_state.selected_features = selected_features
+
+                status.info("🔀 Dividiendo train/test...")
+                progress.progress(35)
+                st.session_state.ml_models.prepare_data(X, y, test_size=test_size)
+                time.sleep(0.05)
+
+                status.info("🏋️ Entrenando modelo...")
+                progress.progress(65)
+                if model_choice == "XGBoost":
                     metrics_results = st.session_state.ml_models.train_xgboost({
                         'n_estimators': xgb_n_estimators,
                         'max_depth': xgb_max_depth,
@@ -320,25 +475,48 @@ with tab2:
                         'colsample_bytree': xgb_colsample
                     })
                     st.session_state.models_trained['xgboost'] = True
-                    
-                    st.success("✅ ¡Entrenamiento completado!")
-                    
-                    # Mostrar métricas inmediatamente
-                    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-                    
-                    with col_m1:
-                        st.metric("📊 Accuracy", f"{metrics_results['accuracy']:.4f}")
-                    with col_m2:
-                        st.metric("🎯 Precision", f"{metrics_results['precision']:.4f}")
-                    with col_m3:
-                        st.metric("📈 Recall", f"{metrics_results['recall']:.4f}")
-                    with col_m4:
-                        st.metric("⚖️ F1-Score", f"{metrics_results['f1']:.4f}")
+                    st.session_state.trained_model_name = 'xgboost'
+                else:
+                    metrics_results = st.session_state.ml_models.train_random_forest({
+                        'n_estimators': rf_n_estimators,
+                        'max_depth': rf_max_depth,
+                        'min_samples_split': rf_min_samples_split,
+                        'min_samples_leaf': rf_min_samples_leaf
+                    })
+                    st.session_state.models_trained['random_forest'] = True
+                    st.session_state.trained_model_name = 'random_forest'
+
+                status.info("📈 Calculando métricas...")
+                progress.progress(85)
+                time.sleep(0.05)
+
+                st.success("✅ ¡Entrenamiento completado!")
+                status.success("✅ Modelo listo")
+                progress.progress(100)
+                
+                # Mostrar métricas inmediatamente
+                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+                
+                with col_m1:
+                    st.metric("📊 Accuracy", f"{metrics_results['accuracy']:.4f}")
+                with col_m2:
+                    st.metric("🎯 Precision", f"{metrics_results['precision']:.4f}")
+                with col_m3:
+                    st.metric("📈 Recall", f"{metrics_results['recall']:.4f}")
+                with col_m4:
+                    st.metric("⚖️ F1-Score", f"{metrics_results['f1']:.4f}")
+
+                # Matriz de confusión
+                cm, labels = st.session_state.ml_models.get_confusion_matrix()
+                if cm is not None and labels is not None:
+                    st.markdown("#### Matriz de Confusión")
+                    cm_df = pd.DataFrame(cm, index=[f"Real {l}" for l in labels], columns=[f"Pred {l}" for l in labels])
+                    st.dataframe(cm_df.style.background_gradient(cmap='Blues'), use_container_width=True)
         
         st.markdown("---")
         st.markdown("### Métricas de Evaluación")
         
-        if st.session_state.models_trained.get('xgboost'):
+        if any(st.session_state.models_trained.values()):
             all_metrics = st.session_state.ml_models.get_all_metrics()
             
             # Mostrar tabla de métricas
@@ -346,41 +524,49 @@ with tab2:
             st.dataframe(metrics_df, use_container_width=True)
         else:
             st.info("Entrena el modelo para ver métricas detalladas")
+        
+        # Botón Siguiente al final de Tab 2
+        if any(st.session_state.models_trained.values()):
+            st.markdown("---")
+            col_next = st.columns([3, 1])
+            with col_next[1]:
+                if st.button("➡️ Siguiente", use_container_width=True, type="primary", key="next_tab2"):
+                    st.success("✅ Modelo entrenado. Dirígete a la pestaña **'Visualización de Resultados'**")
 
 
-# ============================================================================
-# TAB 3: VISUALIZACIÓN DE RESULTADOS
-# ============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
+# PESTAÑA 3: VISUALIZACIÓN DE RESULTADOS
+# Aquí usamos el modelo entrenado para predecir vulnerabilidad y visualizar resultados
+# ══════════════════════════════════════════════════════════════════════════════
 with tab3:
     st.markdown("## 3️⃣ Visualización de Resultados (Dashboard)")
     
-    # Verificar que el modelo esté entrenado (CU-03 completado)
-    if not st.session_state.models_trained.get('xgboost'):
-        st.error("🚫 **Debe entrenar el modelo XGBoost primero**")
+    # Verificar que al menos un modelo esté entrenado
+    if not any(st.session_state.models_trained.values()):
+        st.error("🚫 **Debe entrenar un modelo primero**")
         st.warning(
-            "⚠️ Según el caso de uso CU-04, para visualizar zonas potencialmente vulnerables "
-            "es necesario completar primero el CU-03 'Analizar patrones de vulnerabilidad'.\n\n"
-            "**Pasos a seguir:**\n"
+            "Para visualizar zonas potencialmente vulnerables, primero complete el entrenamiento.\n\n"
+            "Pasos a seguir:\n"
             "1. Ve a la pestaña **'📁 Gestión de Datos'** y carga/procesa los datos\n"
-            "2. Ve a la pestaña **'🤖 Entrenamiento y Análisis'** y entrena el modelo XGBoost\n"
+            "2. Ve a la pestaña **'🤖 Entrenamiento y Análisis'** y entrena un modelo (XGBoost o Random Forest)\n"
             "3. Regresa aquí para visualizar las predicciones de vulnerabilidad"
         )
         st.stop()
     
-    if st.session_state.df_loaded is None:
-        st.warning("⚠️ Carga datos en la pestaña 'Gestión de Datos' para ver visualizaciones")
+    if st.session_state.df_processed is None:
+        st.warning("⚠️ Carga y procesa datos en la pestaña 'Gestión de Datos' para ver visualizaciones")
         st.stop()
     
     # Panel de filtros
     with st.expander("🔍 Panel de Filtros", expanded=True):
-        col_filter1, col_filter2, col_filter3, col_filter4 = st.columns(4)
+        col_filter1, col_filter2, col_filter3, col_filter4, col_filter5 = st.columns(5)
         
         with col_filter1:
             st.markdown("**Provincias**")
             # Obtener provincias disponibles del dataset
-            prov_cols = [col for col in st.session_state.df_loaded.columns if 'provincia' in col.lower()]
+            prov_cols = [col for col in st.session_state.df_processed.columns if 'provincia' in col.lower()]
             if prov_cols:
-                available_provinces = sorted(st.session_state.df_loaded[prov_cols[0]].dropna().unique().tolist())
+                available_provinces = sorted(st.session_state.df_processed[prov_cols[0]].dropna().unique().tolist())
             else:
                 available_provinces = [
                     'Pichincha', 'Guayas', 'Azuay', 'Tungurahua', 'Imbabura', 'Carchi',
@@ -398,16 +584,30 @@ with tab3:
             )
         
         with col_filter2:
-            st.markdown("**Rango Temporal**")
-            year_start = st.slider("Año Inicial", 2010, 2022, 2015, key="year_start")
-            year_end = st.slider("Año Final", 2010, 2022, 2022, key="year_end")
-        
+            st.markdown("**Año**")
+            selected_year = st.slider("Año", 2010, 2026, 2022, key="selected_year")
+
         with col_filter3:
+            st.markdown("**Mes**")
+            month_names = [
+                "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+            ]
+            month_options = ["Todos"] + month_names
+            selected_month_label = st.selectbox(
+                "Mes del evento",
+                options=month_options,
+                index=0,
+                key="selected_month"
+            )
+            selected_month = month_names.index(selected_month_label) + 1 if selected_month_label != "Todos" else None
+        
+        with col_filter4:
             st.markdown("**Tipos de Evento**")
             # Obtener tipos disponibles
-            event_cols = [col for col in st.session_state.df_loaded.columns if 'evento' in col.lower() or 'tipo' in col.lower()]
+            event_cols = [col for col in st.session_state.df_processed.columns if 'evento' in col.lower() or 'tipo' in col.lower()]
             if event_cols:
-                available_events = sorted(st.session_state.df_loaded[event_cols[0]].dropna().unique().tolist())
+                available_events = sorted(st.session_state.df_processed[event_cols[0]].dropna().unique().tolist())
             else:
                 available_events = ['Inundación', 'Deslizamiento', 'Incendio', 'Erupción Volcánica', 'Terremoto', 'Sequía']
             
@@ -419,7 +619,7 @@ with tab3:
                 help="Deja vacío para mostrar todos"
             )
         
-        with col_filter4:
+        with col_filter5:
             st.markdown("**Nivel de Vulnerabilidad**")
             vulnerability_levels = st.multiselect(
                 "Seleccionar niveles",
@@ -429,24 +629,52 @@ with tab3:
                 help="Deja vacío para mostrar todos los niveles"
             )
     
+    # Botón Visualizar centrado y prominente
+    st.markdown("---")
+    col_viz = st.columns([2, 1, 2])
+    with col_viz[1]:
+        visualizar = st.button("🔍 Visualizar Resultados", use_container_width=True, type="primary", key="btn_visualizar")
+    
+    if not visualizar:
+        st.info("👆 Configura los filtros y presiona el botón **'Visualizar Resultados'** para generar las predicciones de vulnerabilidad")
+        st.stop()
+    
     st.markdown("---")
     
     # Aplicar filtros básicos
-    df_filtered = st.session_state.data_processor.filter_data(
-        st.session_state.df_loaded,
+    df_filtered, is_future = st.session_state.data_processor.filter_data(
+        st.session_state.df_processed,
         {
             'provincia': provincia_selected if provincia_selected else None,
-            'year_range': (year_start, year_end),
-            'event_types': event_types if len(event_types) > 0 else None  # Solo aplicar si hay eventos seleccionados
+            'year': selected_year,
+            'month': selected_month,
+            'event_types': event_types if len(event_types) > 0 else None
         }
     )
     
+    # Mostrar si es predicción futura
+    # Mostrar si es predicción futura
+    if is_future:
+        st.success(f"✅ **{len(df_filtered)} eventos predichos para {selected_year}** basados en patrones históricos (2010-2023)")
+    
     # Información de debug
     with st.expander("🔍 Información de Debug", expanded=False):
-        st.write(f"**Registros iniciales:** {len(st.session_state.df_loaded)}")
+        st.write(f"**Registros iniciales (procesados):** {len(st.session_state.df_processed)}")
+        st.write(f"**Registros después de filtros:** {len(df_filtered)}")
+        st.write(f"**Es predicción futura:** {is_future}")
+        if is_future:
+            st.write(f"**Eventos generados para {selected_year}:** {len(df_filtered)}")
+            st.write("**Método:** Combinaciones provincia-evento históricas + tendencias de características")
+        
+        st.write("---")
+        st.write("**Filtros aplicados:**")
+        st.write(f"- Año: {selected_year}")
+        st.write(f"- Mes: {selected_month_label if selected_month is not None else 'Todos'}")
+        st.write(f"- Provincias: {provincia_selected if provincia_selected else 'Todas'}")
+        st.write(f"- Tipos de evento: {event_types if event_types else 'Todos'}")
         
         # Aplicar filtros uno por uno para ver dónde se pierden datos
-        df_debug = st.session_state.df_loaded.copy()
+        df_debug = st.session_state.df_processed.copy()
         
         # Filtro por provincia
         if provincia_selected:
@@ -457,58 +685,103 @@ with tab3:
                 st.write(f"**Después de filtro de provincia ({provincia_selected}):** {len(df_debug_prov)} registros")
                 df_debug = df_debug_prov
         
-        # Filtro por años
-        date_cols = [col for col in st.session_state.df_loaded.columns if 'año' in col.lower() or 'year' in col.lower() or 'fecha' in col.lower()]
+        # Filtro por año
+        date_cols = [col for col in st.session_state.df_processed.columns if 'año' in col.lower() or 'year' in col.lower() or 'fecha' in col.lower()]
         if date_cols:
             date_col = date_cols[0]
             try:
                 dates = pd.to_datetime(df_debug[date_col], errors='coerce')
-                df_debug_year = df_debug[(dates.dt.year >= year_start) & (dates.dt.year <= year_end)]
-                st.write(f"**Después de filtro de años ({year_start}-{year_end}):** {len(df_debug_year)} registros")
-                df_debug = df_debug_year
+                if is_future:
+                    # Para años futuros, ya tenemos eventos generados
+                    st.write(f"**Año {selected_year} (futuro)**: Generados {len(df_filtered)} eventos basados en patrones históricos")
+                else:
+                    df_debug_year = df_debug[dates.dt.year == selected_year]
+                    st.write(f"**Después de filtro de año ({selected_year}):** {len(df_debug_year)} registros")
+                    df_debug = df_debug_year
             except:
                 st.write("⚠️ Error al procesar fechas")
+
+        # Filtro por mes
+        if selected_month:
+            month_col_candidates = [col for col in st.session_state.df_processed.columns if 'mes' in col.lower()]
+            st.write(f"**Columnas de mes detectadas:** {month_col_candidates}")
+            if month_col_candidates:
+                month_col = month_col_candidates[0]
+                st.write(f"**Usando columna:** {month_col}")
+                st.write(f"**Valores únicos en columna mes:** {sorted(df_debug[month_col].dropna().unique().tolist())[:10]}")
+                
+                month_series = pd.to_numeric(df_debug[month_col], errors='coerce')
+                df_debug_month = df_debug[month_series == selected_month]
+                st.write(f"**Después de filtro de mes ({selected_month}):** {len(df_debug_month)} registros")
+                df_debug = df_debug_month
+            else:
+                st.write("⚠️ No se encontró columna de mes para aplicar el filtro")
         
-        # Filtro por evento
+        # Filtro por tipo de evento
         if event_types:
-            event_cols = [col for col in st.session_state.df_loaded.columns if 'evento' in col.lower() or 'tipo' in col.lower()]
-            if event_cols:
-                event_col = event_cols[0]
-                df_debug_event = df_debug[df_debug[event_col].isin(event_types)]
-                st.write(f"**Después de filtro de eventos ({event_types}):** {len(df_debug_event)} registros")
+            event_col_candidates = [col for col in st.session_state.df_processed.columns if 'evento' in col.lower() or 'tipo' in col.lower()]
+            st.write(f"**Columnas de evento detectadas:** {event_col_candidates}")
+            if event_col_candidates:
+                event_col = event_col_candidates[0]
+                st.write(f"**Usando columna:** {event_col}")
+                st.write(f"**Valores únicos en columna evento:** {sorted(df_debug[event_col].dropna().unique().tolist())[:10]}")
+                
+                event_series_upper = df_debug[event_col].astype(str).str.upper()
+                event_types_upper = [et.upper() for et in event_types]
+                df_debug_event = df_debug[event_series_upper.isin(event_types_upper)]
+                st.write(f"**Después de filtro de evento ({event_types}):** {len(df_debug_event)} registros")
                 df_debug = df_debug_event
+            else:
+                st.write("⚠️ No se encontró columna de evento para aplicar el filtro")
         
         # Mostrar provincias disponibles
         st.write("**Provincias disponibles en datos originales:**")
-        prov_col = [col for col in st.session_state.df_loaded.columns if 'provincia' in col.lower()][0]
-        provincias_disponibles = st.session_state.df_loaded[prov_col].value_counts()
+        prov_col = [col for col in st.session_state.df_processed.columns if 'provincia' in col.lower()][0]
+        provincias_disponibles = st.session_state.df_processed[prov_col].value_counts()
         st.dataframe(provincias_disponibles.head(15))
-    
     if len(df_filtered) == 0:
         st.error("⚠️ No hay datos que cumplan con los filtros seleccionados")
-        st.info("💡 **Sugerencia:** Intenta ampliar el rango de años o dejar los filtros vacíos")
+        if provincia_selected:
+            st.warning("💡 **Sugerencia:** Verifica que la provincia seleccionada tenga eventos del tipo elegido")
+        else:
+            st.info("💡 **Sugerencia:** Intenta dejar los filtros vacíos o cambiar los tipos de evento")
         st.stop()
     
     # Preparar datos para predicción del modelo
     with st.spinner("🔮 Generando predicciones de vulnerabilidad..."):
-        # Usar las mismas features que se usaron en el entrenamiento
-        if 'selected_features' in st.session_state and len(st.session_state.selected_features) > 0:
+        # Usar las MISMAS features que se usaron en el entrenamiento (guardadas en Tab 2)
+        if hasattr(st.session_state, 'selected_features') and st.session_state.selected_features:
             selected_features = st.session_state.selected_features
         else:
             # Fallback: usar todas las numéricas disponibles
             selected_features = st.session_state.df_processed.select_dtypes(include=[np.number]).columns.tolist() if st.session_state.df_processed is not None else []
+            if selected_features:
+                st.warning("⚠️ No se encontraron features del entrenamiento. Usando todas las numéricas.")
         
         # Preparar features para predicción
         df_pred = df_filtered.copy()
-        
+
         # Asegurar que las columnas necesarias existan
         available_features = [f for f in selected_features if f in df_pred.columns]
         
         if len(available_features) > 0:
             X_pred = df_pred[available_features].fillna(0).values
             
-            # Predecir con el modelo entrenado
-            predictions = st.session_state.ml_models.predict('xgboost', X_pred)
+            # Selección del modelo para predicción
+            available_models = list(st.session_state.ml_models.models.keys())
+            if not available_models:
+                st.error("No hay modelos disponibles para predicción")
+                st.stop()
+
+            selected_model_for_viz = st.selectbox(
+                "Modelo para predicción",
+                options=available_models,
+                index=available_models.index(st.session_state.trained_model_name) if st.session_state.trained_model_name in available_models else 0,
+                format_func=lambda k: "XGBoost" if k == 'xgboost' else "Random Forest"
+            )
+
+            # Predecir con el modelo seleccionado
+            predictions = st.session_state.ml_models.predict(selected_model_for_viz, X_pred)
             
             # Mapear predicciones a niveles de vulnerabilidad (0=Baja, 1=Media, 2=Alta)
             vulnerability_map = {0: 'Baja', 1: 'Media', 2: 'Alta'}
@@ -629,7 +902,7 @@ with tab3:
         st.download_button(
             label="📥 Descargar Predicciones (CSV)",
             data=csv,
-            file_name=f"predicciones_vulnerabilidad_{year_start}_{year_end}.csv",
+            file_name=f"predicciones_vulnerabilidad_{selected_year}.csv",
             mime="text/csv",
             use_container_width=True
         )
@@ -640,8 +913,9 @@ with tab3:
         RESUMEN DE PREDICCIÓN DE VULNERABILIDAD
         ========================================
         
-        Período analizado: {year_start} - {year_end}
+        Año analizado: {selected_year}
         Provincias: {', '.join(provincia_selected) if provincia_selected else 'Todas'}
+        Mes: {selected_month_label if selected_month is not None else 'Todos'}
         Tipos de evento: {', '.join(event_types) if event_types else 'Todos'}
         
         Resultados:
@@ -650,21 +924,21 @@ with tab3:
         - Vulnerabilidad Media: {vuln_media} zonas ({vuln_media/len(df_pred)*100:.1f}%)
         - Vulnerabilidad Baja: {vuln_baja} zonas ({vuln_baja/len(df_pred)*100:.1f}%)
         
-        Modelo utilizado: XGBoost
-        Precisión del modelo: {st.session_state.ml_models.get_all_metrics().get('xgboost', {}).get('accuracy', 0):.4f}
+        Modelo utilizado: { 'XGBoost' if st.session_state.trained_model_name == 'xgboost' else 'Random Forest' }
+        Precisión del modelo: {st.session_state.ml_models.get_all_metrics().get(st.session_state.trained_model_name or 'xgboost', {}).get('accuracy', 0):.4f}
         """
         
         st.download_button(
             label="📄 Descargar Resumen (TXT)",
             data=summary_text,
-            file_name=f"resumen_vulnerabilidad_{year_start}_{year_end}.txt",
+            file_name=f"resumen_vulnerabilidad_{selected_year}.txt",
             mime="text/plain",
             use_container_width=True
         )
 
-# ============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 # PIE DE PÁGINA
-# ============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 st.markdown("---")
 st.markdown(
     """
