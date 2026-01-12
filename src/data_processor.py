@@ -129,6 +129,16 @@ class DataProcessor:
         # Eliminar duplicados
         df_clean = df.drop_duplicates()
         
+        for col in df_clean.select_dtypes(include=['object']).columns:
+            if 'evento' in col.lower() or 'tipo' in col.lower() or 'peligro' in col.lower():
+                df_clean[col] = (
+                    df_clean[col]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                    .str.title()
+                )
+        
         # Detectar y eliminar año 2023 (muy pocos datos, será tratado como futuro)
         year_col = None
         for col in df_clean.columns:

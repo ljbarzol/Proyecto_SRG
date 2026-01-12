@@ -607,7 +607,16 @@ with tab3:
             # Obtener tipos disponibles
             event_cols = [col for col in st.session_state.df_processed.columns if 'evento' in col.lower() or 'tipo' in col.lower()]
             if event_cols:
-                available_events = sorted(st.session_state.df_processed[event_cols[0]].dropna().unique().tolist())
+                available_events = sorted(
+                    st.session_state.df_processed[event_cols[0]]
+                    .dropna()
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                    .str.title()
+                    .unique()
+                    .tolist()
+                )   
             else:
                 available_events = ['Inundación', 'Deslizamiento', 'Incendio', 'Erupción Volcánica', 'Terremoto', 'Sequía']
             
@@ -652,7 +661,6 @@ with tab3:
         }
     )
     
-    # Mostrar si es predicción futura
     # Mostrar si es predicción futura
     if is_future:
         st.success(f"✅ **{len(df_filtered)} eventos predichos para {selected_year}** basados en patrones históricos (2010-2023)")
