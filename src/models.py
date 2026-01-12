@@ -50,6 +50,15 @@ class MLModels:
             y_train, y_test: Etiquetas de entrenamiento y prueba
             last_preds, last_true: Predicciones y valores reales para matriz de confusión
         """
+
+        self.models = {}
+        self.metrics = {}
+        self.X_train = None
+        self.X_test = None
+        self.y_train = None
+        self.y_test = None
+        self.last_preds = None
+        self.last_true = None
     
     def prepare_data(self, X: np.ndarray, y: np.ndarray, test_size: float = 0.2) -> None:
         """
